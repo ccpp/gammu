@@ -2207,7 +2207,7 @@ GSM_Error N6510_PrivGetFilesystemSMSFolders(GSM_StateMachine *s, GSM_SMSFolders 
 	smprintf(s, "Getting SMS folders\n");
 	while (1) {
 		error = N6510_GetFolderListing(s,&Files,Start);
-		if (error == ERR_EMPTY) return ERR_NONE;
+		if (error == ERR_EMPTY) break;
 		if (error != ERR_NONE) return error;
 
 		Start = FALSE;
@@ -2263,6 +2263,58 @@ GSM_Error N6510_PrivGetFilesystemSMSFolders(GSM_StateMachine *s, GSM_SMSFolders 
 			folders->Folder[folders->Number].OutboxFolder);
 		folders->Number++;
 	}
+
+	// Nokia 113: recurse Inbox
+	EncodeUnicode(Files.ID_FullName,"d:/predefmessages/1",19);
+	Start = TRUE;
+	while (1) {
+		error = N6510_GetFolderListing(s,&Files,Start);
+		if (error == ERR_EMPTY) break;
+		if (error != ERR_NONE) return error;
+
+		Start = FALSE;
+
+		if (Files.Folder) {
+			folders->Folder[folders->Number].InboxFolder = TRUE;
+			folders->Folder[folders->Number].OutboxFolder = FALSE;
+			if (real) {
+				EncodeUnicode(folders->Folder[folders->Number].Name,"1/",2);
+				CopyUnicodeString(folders->Folder[folders->Number].Name + 4, Files.Name);
+			} else {
+				EncodeUnicode(folders->Folder[folders->Number].Name,"Inbox ",6);
+				CopyUnicodeString(folders->Folder[folders->Number].Name + 12, Files.Name);
+			}
+			folders->Folder[folders->Number].Memory      = MEM_ME;
+			folders->Number++;
+		}
+	}
+
+	// Nokia 113: recurse Sent folder
+	EncodeUnicode(Files.ID_FullName,"d:/predefmessages/3",19);
+	Start = TRUE;
+	while (1) {
+		error = N6510_GetFolderListing(s,&Files,Start);
+		if (error == ERR_EMPTY) break;
+		if (error != ERR_NONE) return error;
+
+		Start = FALSE;
+
+		if (Files.Folder) {
+			folders->Folder[folders->Number].InboxFolder = FALSE;
+			folders->Folder[folders->Number].OutboxFolder = FALSE;
+			if (real) {
+				EncodeUnicode(folders->Folder[folders->Number].Name,"3/",2);
+				CopyUnicodeString(folders->Folder[folders->Number].Name + 4, Files.Name);
+			} else {
+				EncodeUnicode(folders->Folder[folders->Number].Name,"Sent items ",11);
+				CopyUnicodeString(folders->Folder[folders->Number].Name + 22, Files.Name);
+			}
+			folders->Folder[folders->Number].Memory      = MEM_ME;
+			folders->Number++;
+		}
+	}
+
+	return ERR_NONE;
 }
 
 /* Series 40 3.0 */
